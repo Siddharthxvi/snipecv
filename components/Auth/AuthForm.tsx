@@ -105,37 +105,20 @@ export default function AuthForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isValid, setIsValid] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
-  // Height reveal and posterized label state for Confirm Password field
+  // Height reveal state for Confirm Password field
   const [confirmHeight, setConfirmHeight] = useState(0);
-  const [confirmLabel, setConfirmLabel] = useState("");
   const confirmTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isConfirmRevealed = useRef(false);
 
-  // Handle Auth Mode Toggle
-  const toggleAuthMode = () => {
-    setAuthMode(prev => {
-      const nextMode = prev === "LOGIN" ? "SIGNUP" : "LOGIN";
-      // Trigger title transition
-      setTriggerTitle(t => !t);
-      
-      // Reset validation states
-      setIsValid(true);
-      
-      // Handle stepped reveal/collapse
-      if (nextMode === "SIGNUP") {
-        triggerSteppedReveal();
-      } else {
-        triggerSteppedCollapse();
-      }
-      return nextMode;
-    });
-  };
-
-  // Step-based height reveal + text resolver (12fps)
+  // Step-based height reveal (12fps)
   const triggerSteppedReveal = () => {
+    isConfirmRevealed.current = true;
     let frame = 0;
-    const steps = 4;
-    const finalHeight = 85;
+    const steps = 6;
+    const finalHeight = 47;
     const intervalTime = 1000 / 12;
 
     if (confirmTimerRef.current) clearInterval(confirmTimerRef.current as any);
@@ -147,19 +130,18 @@ export default function AuthForm() {
 
       if (frame >= steps) {
         if (confirmTimerRef.current) clearInterval(confirmTimerRef.current as any);
-        triggerLabelInitialization();
       }
     }, intervalTime);
   };
 
   const triggerSteppedCollapse = () => {
+    isConfirmRevealed.current = false;
     let frame = 0;
-    const steps = 4;
+    const steps = 6;
     const startHeight = confirmHeight;
     const intervalTime = 1000 / 12;
 
     if (confirmTimerRef.current) clearInterval(confirmTimerRef.current as any);
-    setConfirmLabel(""); // Clear label instantly
 
     confirmTimerRef.current = setInterval(() => {
       frame++;
@@ -173,28 +155,15 @@ export default function AuthForm() {
     }, intervalTime);
   };
 
-  // Character-by-character resolving animation for Confirm Password label
-  const triggerLabelInitialization = () => {
-    const targetLabel = "CONFIRM ACCESS KEY";
-    let index = 0;
-    const intervalTime = 1000 / 12;
-
-    if (confirmTimerRef.current) clearInterval(confirmTimerRef.current as any);
-
-    confirmTimerRef.current = setInterval(() => {
-      index++;
-      if (index >= targetLabel.length) {
-        setConfirmLabel(targetLabel);
-        if (confirmTimerRef.current) clearInterval(confirmTimerRef.current as any);
-      } else {
-        // Resolve target characters with noise suffix
-        setConfirmLabel(prev => {
-          const base = targetLabel.substring(0, index);
-          const noise = NOISE[Math.floor(Math.random() * NOISE.length)];
-          return base + noise;
-        });
-      }
-    }, intervalTime);
+  // Handle Auth Mode Toggle
+  const toggleAuthMode = () => {
+    setAuthMode(prev => {
+      const nextMode = prev === "LOGIN" ? "SIGNUP" : "LOGIN";
+      setTriggerTitle(t => !t);
+      setIsValid(true);
+      setValidationError("");
+      return nextMode;
+    });
   };
 
   // Password strength check: min 8 chars, uppercase, lowercase, digit, special symbol
@@ -207,17 +176,54 @@ export default function AuthForm() {
     return hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
   };
 
+  // Watch password value and reveal confirm password field only when criteria is met
+  useEffect(() => {
+    if (authMode === "SIGNUP") {
+      const isValidPassword = validatePassword(password);
+      if (isValidPassword && !isConfirmRevealed.current) {
+        triggerSteppedReveal();
+      } else if (!isValidPassword && isConfirmRevealed.current) {
+        triggerSteppedCollapse();
+      }
+    } else {
+      if (isConfirmRevealed.current) {
+        triggerSteppedCollapse();
+      }
+    }
+  }, [password, authMode]);
+
   // Submit Handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (authMode === "SIGNUP") {
-      const valid = validatePassword(password) && password === confirmPassword;
-      setIsValid(valid);
-      if (!valid) return;
-    }
+    setValidationError("");
+    setIsValid(true);
 
-    // Access granted simulation
-    alert(authMode === "LOGIN" ? "ACCESSING CARRIER MEMORY..." : "IDENTITY ARCHIVE CREATED.");
+    if (authMode === "LOGIN") {
+      // Mock validation: assume the correct password is "admin123"
+      if (password !== "admin123") {
+        setValidationError("incorrect password");
+        setIsValid(false);
+        return;
+      }
+      // Redirect to dashboard
+      window.location.href = "/dashboard";
+    } else {
+      // SIGNUP
+      if (!validatePassword(password)) {
+        setValidationError("Password must be at least 8 characters, include an uppercase letter, lowercase letter, number, and special character");
+        setIsValid(false);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setValidationError("confirm your password to continue");
+        setIsValid(false);
+        return;
+      }
+      // Clear receipt for new signup
+      localStorage.removeItem("snipecv_receipt_data");
+      // Redirect to dashboard
+      window.location.href = "/dashboard";
+    }
   };
 
   const titleString = authMode === "LOGIN" ? TITLE_LOGIN : TITLE_SIGNUP;
@@ -236,35 +242,55 @@ export default function AuthForm() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-y-4">
+      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-y-6">
         {/* Username */}
         <div className="flex flex-col gap-y-1">
-          <label className="text-[9px] font-sans font-bold tracking-widest text-[#A3485A] uppercase">
-            IDENTIFIER KEY
-          </label>
           <input 
             type="text" 
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="e.g. SIDDHARTHXVI"
-            className="w-full border border-[#842A3B] px-3 py-2 bg-transparent text-[#842A3B] font-mono text-xs outline-none placeholder:text-[#A3485A]/35 focus:border-[#6B3F69]"
+            className="w-full border-t-0 border-l-0 border-r-0 border-b border-[#842A3B] px-3 py-2 bg-transparent text-[#842A3B] font-mono text-xs outline-none placeholder:text-[#A3485A]/35 focus:border-b-[#6B3F69] focus:ring-0 rounded-none transition-colors"
           />
         </div>
 
         {/* Password */}
-        <div className="flex flex-col gap-y-1">
-          <label className="text-[9px] font-sans font-bold tracking-widest text-[#A3485A] uppercase">
-            ACCESS PASSKEY
-          </label>
+        <div className="flex flex-col gap-y-1 relative w-full h-[37px] border-b border-[#842A3B] focus-within:border-b-[#6B3F69] transition-colors">
           <input 
-            type="password" 
+            type="text" 
             required
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
-            className="w-full border border-[#842A3B] px-3 py-2 bg-transparent text-[#842A3B] font-mono text-xs outline-none placeholder:text-[#A3485A]/35 focus:border-[#6B3F69]"
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setValidationError("");
+            }}
+            className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-[#842A3B] px-3 py-2 font-mono text-xs outline-none border-none focus:ring-0 rounded-none z-10"
           />
+          {/* Overlay masked/plain value */}
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-[#842A3B] font-mono text-xs tracking-wide select-none">
+            {password ? (
+              showPassword ? password : "#".repeat(password.length)
+            ) : (
+              <span className="opacity-35 font-mono text-xs select-none">••••••••••••</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#842A3B] hover:text-[#6B3F69] focus:outline-none transition-colors z-20"
+          >
+            {showPassword ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            )}
+          </button>
         </div>
 
         {/* Confirm Password (Stepped height reveal input) */}
@@ -272,43 +298,51 @@ export default function AuthForm() {
           className="overflow-hidden flex flex-col justify-end"
           style={{ height: `${confirmHeight}px` }}
         >
-          <div className="flex flex-col gap-y-1 pb-[10px]">
-            <label className="text-[9px] font-sans font-bold tracking-widest text-[#A3485A] uppercase h-[12px] overflow-hidden">
-              {confirmLabel || "\u00A0"}
-            </label>
-            <input 
-              type="password" 
-              required={authMode === "SIGNUP"}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="w-full border border-[#842A3B] px-3 py-2 bg-transparent text-[#842A3B] font-mono text-xs outline-none placeholder:text-[#A3485A]/35 focus:border-[#6B3F69]"
-            />
+          <div className="flex flex-col gap-y-1 pb-[10px] relative">
+            <div className="relative w-full h-[37px] border-b border-[#842A3B] focus-within:border-b-[#6B3F69] transition-colors">
+              <input 
+                type="text" 
+                required={authMode === "SIGNUP"}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setValidationError("");
+                }}
+                className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-[#842A3B] px-3 py-2 font-mono text-xs outline-none border-none focus:ring-0 rounded-none z-10"
+              />
+              {/* Overlay masked/plain value */}
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-[#842A3B] font-mono text-xs tracking-wide select-none">
+                {confirmPassword ? (
+                  showPassword ? confirmPassword : "#".repeat(confirmPassword.length)
+                ) : (
+                  <span className="opacity-35 font-mono text-xs select-none">••••••••••••</span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Validation Errors */}
-        {!isValid && authMode === "SIGNUP" && (
-          <div className="text-[9px] font-mono font-bold tracking-widest text-[#A3485A] uppercase select-none animate-pulse py-1">
-            ACCESS KEY INCOMPLETE
+        {validationError && (
+          <div className="text-[10px] font-mono font-bold tracking-widest text-[#A3485A] uppercase select-none py-1 leading-normal">
+            {validationError}
           </div>
         )}
 
-        {/* Action Button */}
+        {/* Action Button: Solid box in primary accent color, no text */}
         <button 
           type="submit"
-          className="group w-full mt-2 text-xs font-sans font-bold tracking-widest text-[#842A3B] transition-[letter-spacing,color] duration-500 ease-in-out hover:text-[#6B3F69] hover:tracking-[0.4em] text-center border-none bg-transparent outline-none cursor-pointer"
-        >
-          ACCESS SYSTEM
-        </button>
+          aria-label="Submit Authentication"
+          className="w-full mt-2 h-10 bg-[#842A3B] hover:bg-[#6B3F69] transition-colors duration-300 border-none outline-none cursor-pointer"
+        />
       </form>
 
       {/* Switch auth mode toggle link */}
       <button
         onClick={toggleAuthMode}
-        className="mt-6 text-[9px] font-sans font-bold tracking-widest text-[#A3485A] transition-[letter-spacing,color] duration-500 ease-in-out hover:text-[#6B3F69] hover:tracking-[0.3em] bg-transparent border-none outline-none cursor-pointer"
+        className="mt-6 text-[9px] font-sans font-bold tracking-widest text-[#A3485A] transition-[letter-spacing,color] duration-500 ease-in-out hover:text-[#6B3F69] hover:tracking-[0.3em] bg-transparent border-none outline-none cursor-pointer uppercase"
       >
-        {authMode === "LOGIN" ? "CREATE A NEW ARCHIVE KEY" : "ACCESS AN EXISTING KEY"}
+        {authMode === "LOGIN" ? "SIGN UP" : "LOG IN"}
       </button>
     </div>
   );

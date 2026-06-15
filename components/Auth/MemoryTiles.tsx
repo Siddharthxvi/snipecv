@@ -4,8 +4,8 @@ import { useEffect, useState, useRef } from "react";
 
 const GRID_COLS = 2;
 const GRID_ROWS = 3;
-const TILE_WIDTH = 130;  // Width in px
-const TILE_HEIGHT = 130; // Height in px
+const TILE_WIDTH = 160;  // Width in px
+const TILE_HEIGHT = 160; // Height in px
 const GAP = 12;
 
 const MESSAGES = [
@@ -237,7 +237,7 @@ export default function MemoryTiles() {
         {resolvedTexts.map((text, idx) => (
           <div 
             key={idx} 
-            className="flex flex-col items-center justify-center text-center font-sans text-[10px] font-bold tracking-widest text-[#A3485A] leading-relaxed uppercase border border-accent-main/5 p-2 bg-accent-main/[0.005]"
+            className="flex flex-col items-center justify-center text-center font-sans text-xs sm:text-sm font-bold tracking-widest text-[#A3485A] leading-relaxed uppercase border border-accent-main/5 p-4 bg-accent-main/[0.005]"
             style={{ width: `${TILE_WIDTH}px`, height: `${TILE_HEIGHT}px` }}
           >
             {text.split("\n").map((line, lIdx) => (

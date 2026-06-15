@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 export default function Navigation() {
   const links = [
     { label: "ABOUT", href: "/about" },
-    { label: "LOGIN", href: "/login" },
+    { label: "LOGIN", href: "/auth" },
   ];
 
   return (

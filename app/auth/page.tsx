@@ -30,7 +30,7 @@ export default function AuthPage() {
           href="/" 
           className="group text-[10px] font-sans font-bold tracking-widest uppercase text-[#842A3B] transition-[letter-spacing,color] duration-500 hover:text-[#6B3F69] hover:tracking-[0.3em]"
         >
-          ← SNIPECV // RETRIEVE TERMINAL
+          {"SNIPECV \\\\  HOME"}
         </a>
       </div>
 
